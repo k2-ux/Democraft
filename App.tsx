@@ -10,14 +10,8 @@ import React, { useEffect, useState } from 'react';
 import StackNav from './src/navigators/StackNav';
 import auth from '@react-native-firebase/auth';
 import { Provider } from 'react-redux';
-import { loadFavorites } from './src/redux/favouriteSlice';
 import store from './src/redux/store';
 const App: React.FC = () => {
-
-  useEffect(() => {
-    store.dispatch(loadFavorites());
-  }, []);
-
   return (
     <Provider store={store}>
       <StackNav />

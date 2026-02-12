@@ -10,26 +10,28 @@ import {
 } from 'react-native';
 import { RootState } from '../redux/store';
 import { useDispatch, useSelector } from 'react-redux';
-import {addFavorite,removeFavorite} from '../redux/favouriteSlice'
+import { addFavorite, removeFavorite } from '../redux/favouriteSlice';
 import Images from '../helpers/Images';
-interface Product {
-  id:string;
-  title: string;
-  description: string;
-  price: number;
-  thumbnail: string;
-}
+import { LIST_API_URL } from '@env';
+import firestore, {
+  arrayUnion,
+  arrayRemove,
+} from '@react-native-firebase/firestore';
+import { getAuth } from '@react-native-firebase/auth';
+import { Product } from '@/types/product';
 
 const Listing = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const favoriteStore = useSelector((state: RootState) => state.favorites.favorites);
+  const favoriteStore = useSelector(
+    (state: RootState) => state.favorites.favorites,
+  );
 
   const dispatch = useDispatch();
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('https://dummyjson.com/products');
+        const response = await fetch(LIST_API_URL);
         const data = await response.json();
         setProducts(data.products);
       } catch (error) {
@@ -41,56 +43,89 @@ const Listing = () => {
 
     fetchProducts();
   }, []);
-  const [favorites, setFavorites] = useState<Product[]>([]); // Track favorites using an array of product IDs
-console.log(favoriteStore)
-  // const toggleFavourite = (productId: number) => {
-  //   setFavorites((prevFavorites) => {
-  //     if (prevFavorites.includes(productId)) {
-  //       // Remove from favorites if it's already there
-  //       dispatch(removeFavorite(productId));
-  //       return prevFavorites.filter((id) => id !== productId);
-  //     } else {
-  //       // Add to favorites if it's not there yet
-  //       dispatch(addFavorite(productId));
-  //       return [...prevFavorites, productId];
-  //     }
-  //   });
-  // };
-  const toggleFavourite = (product: Product) => {
-    const isFavorite = favoriteStore.some((item) => item.id === product.id);
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const user = getAuth().currentUser;
+      if (!user) return;
+
+      try {
+        const doc = await firestore().collection('users').doc(user.uid).get();
+
+        if (doc.exists()) {
+          const data = doc.data();
+          const favoriteIds: string[] = data?.favorites || [];
+
+          // Match IDs with fetched products
+          const matchedProducts = products.filter(product =>
+            favoriteIds.includes(product.id),
+          );
+
+          matchedProducts.forEach(product => {
+            dispatch(addFavorite(product));
+          });
+        }
+      } catch (error) {
+        console.log('Error loading favorites:', error);
+      }
+    };
+
+    if (products.length > 0) {
+      loadFavorites();
+    }
+  }, [products]);
+
+  const toggleFavourite = async (product: Product) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) return;
+
+    const userRef = firestore().collection('users').doc(user.uid);
+
+    const isFavorite = favoriteStore.some(item => item.id === product.id);
 
     if (isFavorite) {
       dispatch(removeFavorite(product.id));
+
+      await userRef.update({
+        favorites: arrayRemove(product.id),
+      });
     } else {
       dispatch(addFavorite(product));
+
+      await userRef.set(
+        {
+          favorites: arrayUnion(product.id),
+        },
+        { merge: true },
+      );
     }
   };
+
   const renderItem = ({ item }: { item: Product }) => (
     <View style={styles.card}>
       <Image source={{ uri: item.thumbnail }} style={styles.image} />
       <View style={styles.infoContainer}>
         <Text style={styles.title}>{item.title}</Text>
-        
+
         <Text style={styles.price}>${item.price}</Text>
       </View>
 
-      <TouchableOpacity onPress={() => toggleFavourite(item)} style={{justifyContent:'center',
-        alignItems:'center',
-        flex:1
-        }}>
-         <Image
+      <TouchableOpacity
+        onPress={() => toggleFavourite(item)}
+        style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}
+      >
+        <Image
           source={
-            favoriteStore.find((fav) => fav.id === item.id)
+            favoriteStore.find(fav => fav.id === item.id)
               ? Images.favorite
               : Images.unfavorite
           }
-    style={{ height: 28, width: 28 }}
-  />
+          style={{ height: 28, width: 28 }}
+        />
       </TouchableOpacity>
     </View>
-  );    
-
-  
+  );
 
   if (loading) {
     return (
@@ -105,7 +140,7 @@ console.log(favoriteStore)
     <View style={styles.container}>
       <FlatList
         data={products}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={item => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}

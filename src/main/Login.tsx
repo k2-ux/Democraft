@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,18 +12,26 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 // 1. Updated Firebase Auth imports
-import { getAuth, signInWithEmailAndPassword } from '@react-native-firebase/auth';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+} from '@react-native-firebase/auth';
 import {
   GoogleSignin,
   statusCodes,
-  isSuccessResponse, // Added for better type checking
+  isSuccessResponse,
 } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Images from '../helpers/Images';
-import Constants from '../helpers/Constants';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {RootStackParamList} from '../types/navigation'; 
-
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigationType';
+// import { Google_WebClient_Id } from '@env';
+import {
+  GoogleAuthProvider,
+  signInWithCredential,
+} from '@react-native-firebase/auth';
+const Google_WebClient_Id =
+  '150246811251-7ucgh4rufut99t5qpjub0p07gff89m4j.apps.googleusercontent.com';
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Login'
@@ -38,7 +46,19 @@ export function checkDate(dateString: string): string {
   if (!dateString || !/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
     return 'Invalid Date';
   }
-  const [day, month, year] = dateString.split('/').map(Number);
+  const [dayStr, monthStr, yearStr] = dateString.split('/');
+  const day = Number(dayStr);
+  const month = Number(monthStr);
+  const year = Number(yearStr);
+
+  if (
+    isNaN(day) ||
+    isNaN(month) ||
+    isNaN(year)
+  ) {
+    return 'Invalid Date';
+  }
+
   const inputDate = new Date(year, month - 1, day);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -49,59 +69,78 @@ export function checkDate(dateString: string): string {
   else return dateString;
 }
 
-const Login: React.FC<Props> = ({navigation}) => {
+const Login: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [emailLoading, setEmailLoading] = useState<boolean>(false);
+  const [googleLoading, setGoogleLoading] = useState<boolean>(false);
 
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: Constants.Google_WebClient_Id,
+      webClientId: Google_WebClient_Id,
     });
   }, []);
 
   const storeLoginDate = async (): Promise<void> => {
     const currentDate = new Date();
-    const formattedDate = `${String(currentDate.getDate()).padStart(2, '0')}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${currentDate.getFullYear()}`;
+    const formattedDate = `${String(currentDate.getDate()).padStart(
+      2,
+      '0',
+    )}/${String(currentDate.getMonth() + 1).padStart(
+      2,
+      '0',
+    )}/${currentDate.getFullYear()}`;
     await AsyncStorage.setItem('lastLogin', formattedDate);
   };
 
- const handleGoogle = async (): Promise<void> => {
-  setLoading(true);
-  try {
-    await GoogleSignin.hasPlayServices();
-    await GoogleSignin.signOut();
-    const response = await GoogleSignin.signIn();
+  const handleGoogle = async (): Promise<void> => {
+    setGoogleLoading(true);
+    setError('');
 
-    // 2. Safer handling of Google Sign-in response
-    if (isSuccessResponse(response)) {
-      await AsyncStorage.setItem('isGoogleSign', JSON.stringify(true));
-      await AsyncStorage.setItem('googleUser', JSON.stringify(response.data.user));
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+
+      if (!isSuccessResponse(response)) {
+        throw new Error('Google Sign-In failed');
+      }
+
+      const { idToken } = response.data;
+
+      if (!idToken) {
+        throw new Error('No ID token found');
+      }
+
+      const googleCredential = GoogleAuthProvider.credential(idToken);
+
+      const auth = getAuth();
+      await signInWithCredential(auth, googleCredential);
       await storeLoginDate();
+
       ToastAndroid.show('Google Login Successful!', ToastAndroid.SHORT);
       navigation.navigate('Home');
-    }
-  } catch (error: any) {
-    let errorMessage = 'Google Login Failed';
-    if (error.code) {
-      switch (error.code) {
-        case statusCodes.IN_PROGRESS:
-          errorMessage = 'Sign-in in progress';
-          break;
-        case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-          errorMessage = 'Play Services not available';
-          break;
-        default:
-          errorMessage = 'Google Sign-In error';
-      }
-    }
-    ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (error: any) {
+      let errorMessage = 'Google Login Failed';
 
+      if (error.code) {
+        switch (error.code) {
+          case statusCodes.IN_PROGRESS:
+            errorMessage = 'Sign-in already in progress';
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            errorMessage = 'Play Services not available';
+            break;
+          default:
+            errorMessage = error.message || 'Google Sign-In error';
+        }
+      }
+
+      ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleLogin = async (): Promise<void> => {
     if (!email || !password) {
@@ -115,18 +154,16 @@ const Login: React.FC<Props> = ({navigation}) => {
     }
 
     setError('');
-    setLoading(true);
-    const auth = getAuth(); // 3. Initialize Modular Auth
+    setEmailLoading(true);
+    const auth = getAuth();
 
     try {
-      // 4. Use modular signIn function
       await signInWithEmailAndPassword(auth, email, password);
       await storeLoginDate();
       ToastAndroid.show('Login Successful!', ToastAndroid.SHORT);
       navigation.navigate('Home');
     } catch (error: any) {
       let errorMessage = 'Login failed';
-      // Firebase modular error codes remain the same
       if (error.code === 'auth/invalid-credential') {
         errorMessage = 'Invalid credentials';
       } else if (error.code === 'auth/user-not-found') {
@@ -136,13 +173,15 @@ const Login: React.FC<Props> = ({navigation}) => {
       }
       ToastAndroid.show(errorMessage, ToastAndroid.SHORT);
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
     }
   };
 
   const handleNavigateToSignup = (): void => {
     navigation.navigate('Signup');
   };
+
+  const isAnyLoading = emailLoading || googleLoading;
 
   return (
     <LinearGradient colors={['#6B7280', '#1F2937']} style={styles.container}>
@@ -158,6 +197,7 @@ const Login: React.FC<Props> = ({navigation}) => {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
+        editable={!isAnyLoading}
       />
       <TextInput
         style={styles.input}
@@ -166,17 +206,20 @@ const Login: React.FC<Props> = ({navigation}) => {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        editable={!isAnyLoading}
       />
 
       <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
+        style={[styles.button, emailLoading && styles.buttonDisabled]}
         onPress={handleLogin}
-        disabled={loading}
-        activeOpacity={0.8}>
+        disabled={isAnyLoading}
+        activeOpacity={0.8}
+      >
         <LinearGradient
           colors={['#4CAF50', '#45a049']}
-          style={styles.buttonGradient}>
-          {loading ? (
+          style={styles.buttonGradient}
+        >
+          {emailLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <Text style={styles.buttonText}>Log In</Text>
@@ -186,7 +229,9 @@ const Login: React.FC<Props> = ({navigation}) => {
 
       <TouchableOpacity
         onPress={handleNavigateToSignup}
-        style={styles.signupLink}>
+        style={styles.signupLink}
+        disabled={isAnyLoading}
+      >
         <Text style={styles.signupText}>Don't have an account? Sign up</Text>
       </TouchableOpacity>
 
@@ -195,18 +240,20 @@ const Login: React.FC<Props> = ({navigation}) => {
       <TouchableOpacity
         style={[
           styles.googleButton,
-          loading && styles.buttonDisabled,
+          googleLoading && styles.buttonDisabled,
           Platform.OS === 'android'
             ? styles.googleButtonAndroid
             : styles.googleButtonIOS,
         ]}
         onPress={handleGoogle}
-        disabled={loading}
-        activeOpacity={0.8}>
+        disabled={isAnyLoading}
+        activeOpacity={0.8}
+      >
         <LinearGradient
           colors={['#ffffff', '#f1f1f1']}
-          style={styles.googleButtonGradient}>
-          {loading ? (
+          style={styles.googleButtonGradient}
+        >
+          {googleLoading ? (
             <ActivityIndicator size="small" color="#000" />
           ) : (
             <>
@@ -222,7 +269,7 @@ const Login: React.FC<Props> = ({navigation}) => {
 
 export default Login;
 
-// Styles remain unchanged as per your request
+// Styles remain unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -248,7 +295,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: {width: 0, height: 2},
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
       },
@@ -308,7 +355,7 @@ const styles = StyleSheet.create({
   },
   googleButtonIOS: {
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
