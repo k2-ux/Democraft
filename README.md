@@ -1,97 +1,130 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+Democraft – Product Listing & Cloud-Synced Favorites App
 
-# Getting Started
+Democraft is a React Native application built with TypeScript that demonstrates authentication, API data fetching, Redux state management, and cloud-synced user-specific favorites using Firebase.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+The project focuses on clean architecture, state synchronization, and secure backend integration rather than full e-commerce functionality.
 
-## Step 1: Start Metro
+✨ Features
+🔐 Authentication
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Email & Password login via Firebase
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Google Sign-In integrated with Firebase Auth
 
-```sh
-# Using npm
-npm start
+Persistent login session handling
 
-# OR using Yarn
-yarn start
-```
+Secure Firestore rules for user-specific data
 
-## Step 2: Build and run your app
+📦 Product Listing
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+Products fetched from DummyJSON public API
 
-### Android
+Clean FlatList rendering
 
-```sh
-# Using npm
-npm run android
+Loading states and error handling
 
-# OR using Yarn
-yarn android
-```
+Type-safe API normalization
 
-### iOS
+❤️ Favorites System
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+Add / remove favorites from listing screen
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+Remove favorites from favorites screen
 
-```sh
-bundle install
-```
+Favorites stored per user in Firestore
 
-Then, and every time you update your native dependencies, run:
+Sync favorites from Firestore on app load
 
-```sh
-bundle exec pod install
-```
+Duplicate-safe Redux reducer logic
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+☁ Cloud Persistence
 
-```sh
-# Using npm
-npm run ios
+Favorites stored at:
 
-# OR using Yarn
-yarn ios
-```
+users/{uid}/favorites
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+Only authenticated users can read/write their own data
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+Firestore acts as source of truth
 
-## Step 3: Modify your app
+Redux used as UI cache
 
-Now that you have successfully run the app, let's make changes!
+🏗 Architecture Overview
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Authentication → Firebase Auth
+Persistent Storage → Firestore
+UI State → Redux Toolkit
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+Application Flow:
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+User logs in (Email or Google)
 
-## Congratulations! :tada:
+Firebase provides authenticated uid
 
-You've successfully run and modified your React Native App. :partying_face:
+App loads user favorites from Firestore
 
-### Now what?
+Favorites are synced into Redux
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+On toggle:
 
-# Troubleshooting
+Firestore updates first
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Redux updates after success
 
-# Learn More
+Logout clears local state
 
-To learn more about React Native, take a look at the following resources:
+Firestore is treated as the backend authority.
+Redux handles client-side rendering.
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+🧠 Technical Highlights
+
+Modular Firebase v22 API usage
+
+Firestore security rule implementation
+
+Consistent ID normalization strategy
+
+Centralized Product type definition
+
+Duplicate-safe reducer logic
+
+Strict TypeScript configuration
+
+Separation of UI state and persistence layer
+
+🔐 Firestore Security Rules
+rules_version = '2';
+service cloud.firestore {
+match /databases/{database}/documents {
+match /users/{userId} {
+allow read, write: if request.auth != null
+&& request.auth.uid == userId;
+}
+}
+}
+
+Each user can only access their own favorites.
+
+🛠 Tech Stack
+
+React Native CLI
+
+TypeScript
+
+Redux Toolkit
+
+Firebase Authentication
+
+Firebase Firestore
+
+React Navigation
+
+DummyJSON API
+
+📂 Project Structure
+src/
+├── main/ // Screens
+├── redux/ // Redux slices & store
+├── types/ // Shared interfaces
+├── helpers/ // Assets & constants
+├── navigators/ // Navigation setup
