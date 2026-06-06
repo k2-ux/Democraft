@@ -1,130 +1,157 @@
-Democraft – Product Listing & Cloud-Synced Favorites App
+# Democraft
 
-Democraft is a React Native application built with TypeScript that demonstrates authentication, API data fetching, Redux state management, and cloud-synced user-specific favorites using Firebase.
+**Democraft** is a React Native application built with **TypeScript** that demonstrates authentication, API data fetching, Redux state management, and cloud-synced user-specific favorites using Firebase.
 
-The project focuses on clean architecture, state synchronization, and secure backend integration rather than full e-commerce functionality.
+The project focuses on **clean architecture, state synchronization, and secure backend integration** rather than full e-commerce functionality.
 
-✨ Features
-🔐 Authentication
+---
 
-Email & Password login via Firebase
+## ✨ Features
 
-Google Sign-In integrated with Firebase Auth
+### 🔐 Authentication
 
-Persistent login session handling
+- Email & Password authentication using Firebase
+- Google Sign-In integrated with Firebase Auth
+- Persistent login session handling
+- Secure Firestore rules for user-specific data
 
-Secure Firestore rules for user-specific data
+### 📦 Product Listing
 
-📦 Product Listing
+- Products fetched from the DummyJSON public API
+- Efficient rendering with `FlatList`
+- Loading states and error handling
+- Type-safe API normalization
 
-Products fetched from DummyJSON public API
+### ❤️ Favorites System
 
-Clean FlatList rendering
+- Add or remove favorites from the product listing
+- Remove favorites from the favorites screen
+- User-specific favorites stored in Firestore
+- Favorites synchronized from Firestore on app startup
+- Duplicate-safe Redux reducer logic
 
-Loading states and error handling
+### ☁️ Cloud Persistence
 
-Type-safe API normalization
+Favorites are stored under:
 
-❤️ Favorites System
-
-Add / remove favorites from listing screen
-
-Remove favorites from favorites screen
-
-Favorites stored per user in Firestore
-
-Sync favorites from Firestore on app load
-
-Duplicate-safe Redux reducer logic
-
-☁ Cloud Persistence
-
-Favorites stored at:
-
+```text
 users/{uid}/favorites
+```
 
-Only authenticated users can read/write their own data
+- Only authenticated users can access their own data
+- Firestore acts as the source of truth
+- Redux serves as the client-side UI cache
 
-Firestore acts as source of truth
+---
 
-Redux used as UI cache
+## 🏗 Architecture Overview
 
-🏗 Architecture Overview
+| Layer | Technology |
+|--------|------------|
+| Authentication | Firebase Authentication |
+| Persistent Storage | Firebase Firestore |
+| UI State Management | Redux Toolkit |
+| Navigation | React Navigation |
+| API | DummyJSON |
 
-Authentication → Firebase Auth
-Persistent Storage → Firestore
-UI State → Redux Toolkit
+### Application Flow
 
-Application Flow:
-
-User logs in (Email or Google)
-
-Firebase provides authenticated uid
-
-App loads user favorites from Firestore
-
-Favorites are synced into Redux
-
-On toggle:
-
-Firestore updates first
-
-Redux updates after success
-
-Logout clears local state
-
-Firestore is treated as the backend authority.
-Redux handles client-side rendering.
-
-🧠 Technical Highlights
-
-Modular Firebase v22 API usage
-
-Firestore security rule implementation
-
-Consistent ID normalization strategy
-
-Centralized Product type definition
-
-Duplicate-safe reducer logic
-
-Strict TypeScript configuration
-
-Separation of UI state and persistence layer
-
-🔐 Firestore Security Rules
-rules_version = '2';
-service cloud.firestore {
-match /databases/{database}/documents {
-match /users/{userId} {
-allow read, write: if request.auth != null
-&& request.auth.uid == userId;
-}
-}
-}
-
-Each user can only access their own favorites.
-
-🛠 Tech Stack
-
-React Native CLI
-
-TypeScript
-
-Redux Toolkit
-
+```text
+User Login
+     │
+     ▼
 Firebase Authentication
+     │
+     ▼
+Receive User UID
+     │
+     ▼
+Load Favorites from Firestore
+     │
+     ▼
+Sync Favorites into Redux
+     │
+     ▼
+User Toggles Favorite
+     │
+     ├── Update Firestore
+     │
+     └── Update Redux after success
+     │
+     ▼
+Logout → Clear Local State
+```
 
-Firebase Firestore
+**Design Principle**
 
-React Navigation
+- Firestore is the backend authority.
+- Redux manages client-side rendering and caching.
 
-DummyJSON API
+---
 
-📂 Project Structure
+## 🧠 Technical Highlights
+
+- Modular Firebase v22 API usage
+- Firestore security rule implementation
+- Consistent ID normalization strategy
+- Centralized `Product` type definition
+- Duplicate-safe reducer logic
+- Strict TypeScript configuration
+- Clear separation of UI state and persistence layer
+
+---
+
+## 🔐 Firestore Security Rules
+
+```javascript
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+Each user can only read and write their own favorites.
+
+---
+
+## 🛠 Tech Stack
+
+- React Native CLI
+- TypeScript
+- Redux Toolkit
+- Firebase Authentication
+- Firebase Firestore
+- React Navigation
+- DummyJSON API
+
+---
+
+## 📂 Project Structure
+
+```text
 src/
-├── main/ // Screens
-├── redux/ // Redux slices & store
-├── types/ // Shared interfaces
-├── helpers/ // Assets & constants
-├── navigators/ // Navigation setup
+├── main/         # Screens
+├── redux/        # Redux slices & store
+├── types/        # Shared interfaces
+├── helpers/      # Assets & constants
+└── navigators/   # Navigation setup
+```
+
+---
+
+## 🎯 Project Goals
+
+This project was built to demonstrate:
+
+- Firebase Authentication integration
+- Cloud-synced user data
+- Redux state management
+- Secure Firestore backend integration
+- Clean React Native architecture
+- TypeScript best practices
